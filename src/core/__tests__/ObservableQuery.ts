@@ -2,7 +2,11 @@ import gql from 'graphql-tag';
 import { GraphQLError } from 'graphql';
 import { TypedDocumentNode } from '@graphql-typed-document-node/core';
 
-import { ApolloClient, NetworkStatus } from '../../core';
+import {
+  ApolloClient,
+  NetworkStatus,
+  WatchQueryFetchPolicy,
+} from '../../core';
 import { ObservableQuery } from '../ObservableQuery';
 import { QueryManager } from '../QueryManager';
 
@@ -11,7 +15,7 @@ import { ApolloLink } from '../../link/core';
 import { InMemoryCache, NormalizedCacheObject } from '../../cache';
 import { ApolloError } from '../../errors';
 
-import { itAsync, mockSingleLink, subscribeAndCount } from '../../testing';
+import { itAsync, MockLink, mockSingleLink, subscribeAndCount } from '../../testing';
 import mockQueryManager from '../../testing/core/mocking/mockQueryManager';
 import mockWatchQuery from '../../testing/core/mocking/mockWatchQuery';
 import wrap from '../../testing/core/wrap';
@@ -82,7 +86,6 @@ describe('ObservableQuery', () => {
     describe('to change pollInterval', () => {
       itAsync('starts polling if goes from 0 -> something', (resolve, reject) => {
         const manager = mockQueryManager(
-          reject,
           {
             request: { query, variables },
             result: { data: dataOne },
@@ -117,7 +120,6 @@ describe('ObservableQuery', () => {
 
       itAsync('stops polling if goes from something -> 0', (resolve, reject) => {
         const manager = mockQueryManager(
-          reject,
           {
             request: { query, variables },
             result: { data: dataOne },
@@ -151,7 +153,6 @@ describe('ObservableQuery', () => {
 
       itAsync('can change from x>0 to y>0', (resolve, reject) => {
         const manager = mockQueryManager(
-          reject,
           {
             request: { query, variables },
             result: { data: dataOne },
@@ -205,7 +206,6 @@ describe('ObservableQuery', () => {
       const variables2 = { first: 1 };
 
       const queryManager = mockQueryManager(
-        reject,
         {
           request: {
             query: queryWithVars,
@@ -262,7 +262,6 @@ describe('ObservableQuery', () => {
       const data2 = { allPeople: { people: [{ name: 'Leia Skywalker' }] } };
 
       const queryManager = mockQueryManager(
-        reject,
         {
           request: {
             query,
@@ -320,7 +319,6 @@ describe('ObservableQuery', () => {
       const variables2 = { first: 1 };
 
       const observable: ObservableQuery<any> = mockWatchQuery(
-        reject,
         {
           request: {
             query,
@@ -361,9 +359,8 @@ describe('ObservableQuery', () => {
 
     // TODO: Something isn't quite right with this test. It's failing but not
     // for the right reasons.
-    itAsync.skip('if query is refetched, and an error is returned, no other observer callbacks will be called', (resolve, reject) => {
+    itAsync.skip('if query is refetched, and an error is returned, no other observer callbacks will be called', (resolve) => {
       const observable: ObservableQuery<any> = mockWatchQuery(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -400,7 +397,6 @@ describe('ObservableQuery', () => {
 
     itAsync('does a network request if fetchPolicy becomes networkOnly', (resolve, reject) => {
       const observable: ObservableQuery<any> = mockWatchQuery(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -627,7 +623,6 @@ describe('ObservableQuery', () => {
 
     itAsync('returns a promise which eventually returns data', (resolve, reject) => {
       const observable: ObservableQuery<any> = mockWatchQuery(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -654,7 +649,6 @@ describe('ObservableQuery', () => {
   describe('setVariables', () => {
     itAsync('reruns query if the variables change', (resolve, reject) => {
       const queryManager = mockQueryManager(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -689,7 +683,6 @@ describe('ObservableQuery', () => {
 
     itAsync('does invalidate the currentResult data if the variables change', (resolve, reject) => {
       const observable: ObservableQuery<any> = mockWatchQuery(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -750,7 +743,6 @@ describe('ObservableQuery', () => {
       };
 
       const observable: ObservableQuery<any> = mockWatchQuery(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -778,7 +770,6 @@ describe('ObservableQuery', () => {
 
     itAsync('does not invalidate the currentResult errors if the variables change', (resolve, reject) => {
       const queryManager = mockQueryManager(
-        reject,
         {
           request: { query, variables },
           result: { errors: [error] },
@@ -814,7 +805,7 @@ describe('ObservableQuery', () => {
 
     itAsync('does not perform a query when unsubscribed if variables change', (resolve, reject) => {
       // Note: no responses, will throw if a query is made
-      const queryManager = mockQueryManager(reject);
+      const queryManager = mockQueryManager();
       const observable = queryManager.watchQuery({ query, variables });
       return observable.setVariables(differentVariables)
         .then(resolve, reject);
@@ -832,7 +823,7 @@ describe('ObservableQuery', () => {
         },
       ];
 
-      const queryManager = mockQueryManager(reject, ...mockedResponses);
+      const queryManager = mockQueryManager(...mockedResponses);
       const firstRequest = mockedResponses[0].request;
       const observable = queryManager.watchQuery({
         query: firstRequest.query,
@@ -870,7 +861,7 @@ describe('ObservableQuery', () => {
         },
       ];
 
-      const queryManager = mockQueryManager(reject, ...mockedResponses);
+      const queryManager = mockQueryManager(...mockedResponses);
       const firstRequest = mockedResponses[0].request;
       const observable = queryManager.watchQuery({
         query: firstRequest.query,
@@ -898,7 +889,6 @@ describe('ObservableQuery', () => {
 
     itAsync('does not rerun query if variables do not change', (resolve, reject) => {
       const observable: ObservableQuery<any> = mockWatchQuery(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -929,7 +919,6 @@ describe('ObservableQuery', () => {
       // and the query stays in loading state until the result for the new variables
       // has returned.
       const observable: ObservableQuery<any> = mockWatchQuery(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -970,7 +959,7 @@ describe('ObservableQuery', () => {
         },
       ];
 
-      const queryManager = mockQueryManager(reject, ...mockedResponses);
+      const queryManager = mockQueryManager(...mockedResponses);
       const firstRequest = mockedResponses[0].request;
       const observable = queryManager.watchQuery({
         query: firstRequest.query,
@@ -1035,7 +1024,7 @@ describe('ObservableQuery', () => {
           },
         ];
 
-        const queryManager = mockQueryManager(reject, ...mockedResponses);
+        const queryManager = mockQueryManager(...mockedResponses);
         const firstRequest = mockedResponses[0].request;
         const observable = queryManager.watchQuery({
           query: firstRequest.query,
@@ -1086,7 +1075,6 @@ describe('ObservableQuery', () => {
       const variables2 = { first: 1 };
 
       const queryManager = mockQueryManager(
-        reject,
         {
           request: {
             query: queryWithVars,
@@ -1159,7 +1147,6 @@ describe('ObservableQuery', () => {
       const variables2 = { first: 1 };
 
       const queryManager = mockQueryManager(
-        reject,
         {
           request: {
             query: queryWithVars,
@@ -1190,11 +1177,21 @@ describe('ObservableQuery', () => {
         },
       );
 
+      const usedFetchPolicies: WatchQueryFetchPolicy[] = [];
       const observable = queryManager.watchQuery({
         query: queryWithVars,
         variables: variables1,
         fetchPolicy: 'cache-and-network',
-        nextFetchPolicy: 'cache-first',
+        nextFetchPolicy(currentFetchPolicy, info) {
+          if (info.reason === "variables-changed") {
+            return info.initialFetchPolicy;
+          }
+          usedFetchPolicies.push(currentFetchPolicy);
+          if (info.reason === "after-fetch") {
+            return "cache-first";
+          }
+          return currentFetchPolicy;
+        },
         notifyOnNetworkStatusChange: true,
       });
 
@@ -1222,7 +1219,7 @@ describe('ObservableQuery', () => {
           }).then(result => {
             expect(result.data).toEqual(data);
           }).catch(reject);
-          expect(observable.options.fetchPolicy).toBe('cache-and-network');
+          expect(observable.options.fetchPolicy).toBe('cache-first');
         } else if (handleCount === 4) {
           expect(result.loading).toBe(true);
           expect(result.networkStatus).toBe(NetworkStatus.setVariables);
@@ -1236,7 +1233,7 @@ describe('ObservableQuery', () => {
           }).then(result => {
             expect(result.data).toEqual(data2);
           }).catch(reject);
-          expect(observable.options.fetchPolicy).toBe('cache-and-network');
+          expect(observable.options.fetchPolicy).toBe('cache-first');
         } else if (handleCount === 6) {
           expect(result.data).toEqual(data2);
           expect(result.loading).toBe(true);
@@ -1245,6 +1242,14 @@ describe('ObservableQuery', () => {
           expect(result.data).toEqual(data2);
           expect(result.loading).toBe(false);
           expect(observable.options.fetchPolicy).toBe('cache-first');
+
+          expect(usedFetchPolicies).toEqual([
+            "cache-and-network",
+            "network-only",
+            "cache-and-network",
+            "cache-and-network",
+          ]);
+
           setTimeout(resolve, 10);
         } else {
           reject(`too many renders (${handleCount})`);
@@ -1406,7 +1411,6 @@ describe('ObservableQuery', () => {
         }
 
         const observableWithoutVariables: ObservableQuery<any> = mockWatchQuery(
-          reject,
           makeMock("a", "b", "c"),
           makeMock("d", "e"),
         );
@@ -1444,7 +1448,7 @@ describe('ObservableQuery', () => {
               'Called refetch({"variables":["d","e"]}) for query QueryWithoutVariables, which does not declare a $variables variable.',
               "Did you mean to call refetch(variables) instead of refetch({ variables })?",
             ].join("\n"));
-            consoleWarnSpy.mockReset();
+            consoleWarnSpy.mockRestore();
 
             setTimeout(resolve, 10);
           } else {
@@ -1487,11 +1491,25 @@ describe('ObservableQuery', () => {
           };
         }
 
-        const observableWithVarsVar: ObservableQuery<any> = mockWatchQuery(
-          reject,
-          makeMock("a", "b", "c"),
-          makeMock("d", "e"),
-        );
+        // We construct the queryManager manually here rather than using 
+        // `mockWatchQuery` because we need to silence console warnings for 
+        // unmatched variables since. This test checks for calls to 
+        // `console.warn` and unfortunately `mockSingleLink` (used by 
+        // `mockWatchQuery`) does not support the ability to disable warnings 
+        // without introducing a breaking change. Instead we construct this 
+        // manually to be able to turn off warnings for this test.
+        const mocks = [makeMock('a', 'b', 'c'), makeMock('d', 'e')];
+        const firstRequest = mocks[0].request;
+        const queryManager = new QueryManager({
+          cache: new InMemoryCache({ addTypename: false }),
+          link: new MockLink(mocks, true, { showWarnings: false })
+        })
+
+        const observableWithVarsVar = queryManager.watchQuery({
+          query: firstRequest.query,
+          variables: firstRequest.variables,
+          notifyOnNetworkStatusChange: false
+        });
 
         subscribeAndCount(error => {
           expect(error.message).toMatch(
@@ -1514,7 +1532,7 @@ describe('ObservableQuery', () => {
             // to call refetch(variables).
             observableWithVarsVar.refetch({
               variables: { vars: ["d", "e"] },
-            }).then(result => {
+            } as any).then(result => {
               reject(`unexpected result ${JSON.stringify(result)}; should have thrown`);
             }, error => {
               expect(error.message).toMatch(
@@ -1525,7 +1543,7 @@ describe('ObservableQuery', () => {
                 'Called refetch({"variables":{"vars":["d","e"]}}) for query QueryWithVarsVar, which does not declare a $variables variable.',
                 "Did you mean to call refetch(variables) instead of refetch({ variables })?",
               ].join("\n"));
-              consoleWarnSpy.mockReset();
+              consoleWarnSpy.mockRestore();
 
               setTimeout(resolve, 10);
             });
@@ -1573,7 +1591,6 @@ describe('ObservableQuery', () => {
         }
 
         const observableWithVariablesVar: ObservableQuery<any> = mockWatchQuery(
-          reject,
           makeMock("a", "b", "c"),
           makeMock("d", "e"),
         );
@@ -1604,7 +1621,7 @@ describe('ObservableQuery', () => {
             });
 
             expect(consoleWarnSpy).not.toHaveBeenCalled();
-            consoleWarnSpy.mockReset();
+            consoleWarnSpy.mockRestore();
 
             setTimeout(resolve, 10);
           } else {
@@ -1733,7 +1750,7 @@ describe('ObservableQuery', () => {
     });
 
     itAsync('returns the current query status immediately', (resolve, reject) => {
-      const observable: ObservableQuery<any> = mockWatchQuery(reject, {
+      const observable: ObservableQuery<any> = mockWatchQuery({
         request: { query, variables },
         result: { data: dataOne },
         delay: 100,
@@ -1769,7 +1786,7 @@ describe('ObservableQuery', () => {
     });
 
     itAsync('returns results from the store immediately', (resolve, reject) => {
-      const queryManager = mockQueryManager(reject, {
+      const queryManager = mockQueryManager({
         request: { query, variables },
         result: { data: dataOne },
       });
@@ -1792,8 +1809,8 @@ describe('ObservableQuery', () => {
       }).then(resolve, reject);
     });
 
-    itAsync('returns errors from the store immediately', (resolve, reject) => {
-      const queryManager = mockQueryManager(reject, {
+    itAsync('returns errors from the store immediately', (resolve) => {
+      const queryManager = mockQueryManager({
         request: { query, variables },
         result: { errors: [error] },
       });
@@ -1816,7 +1833,7 @@ describe('ObservableQuery', () => {
     });
 
     itAsync('returns referentially equal errors', (resolve, reject) => {
-      const queryManager = mockQueryManager(reject, {
+      const queryManager = mockQueryManager({
         request: { query, variables },
         result: { errors: [error] },
       });
@@ -1838,7 +1855,7 @@ describe('ObservableQuery', () => {
     });
 
     itAsync('returns errors with data if errorPolicy is all', (resolve, reject) => {
-      const queryManager = mockQueryManager(reject, {
+      const queryManager = mockQueryManager({
         request: { query, variables },
         result: { data: dataOne, errors: [error] },
       });
@@ -1860,7 +1877,7 @@ describe('ObservableQuery', () => {
     });
 
     itAsync('errors out if errorPolicy is none', (resolve, reject) => {
-      const queryManager = mockQueryManager(reject, {
+      const queryManager = mockQueryManager({
         request: { query, variables },
         result: { data: dataOne, errors: [error] },
       });
@@ -1880,7 +1897,7 @@ describe('ObservableQuery', () => {
     });
 
     itAsync('errors out if errorPolicy is none and the observable has completed', (resolve, reject) => {
-      const queryManager = mockQueryManager(reject, {
+      const queryManager = mockQueryManager({
         request: { query, variables },
         result: { data: dataOne, errors: [error] },
       },
@@ -1910,7 +1927,7 @@ describe('ObservableQuery', () => {
     });
 
     itAsync('ignores errors with data if errorPolicy is ignore', (resolve, reject) => {
-      const queryManager = mockQueryManager(reject, {
+      const queryManager = mockQueryManager({
         request: { query, variables },
         result: { errors: [error], data: dataOne },
       });
@@ -1949,7 +1966,6 @@ describe('ObservableQuery', () => {
       };
 
       const queryManager = mockQueryManager(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -2004,7 +2020,6 @@ describe('ObservableQuery', () => {
 
     itAsync('returns loading even if full data is available when using network-only fetchPolicy', (resolve, reject) => {
       const queryManager = mockQueryManager(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -2055,7 +2070,6 @@ describe('ObservableQuery', () => {
 
     itAsync('returns loading on no-cache fetchPolicy queries when calling getCurrentResult', (resolve, reject) => {
       const queryManager = mockQueryManager(
-        reject,
         {
           request: { query, variables },
           result: { data: dataOne },
@@ -2128,7 +2142,6 @@ describe('ObservableQuery', () => {
 
       itAsync('returns optimistic mutation results from the store', (resolve, reject) => {
         const queryManager = mockQueryManager(
-          reject,
           {
             request: { query, variables },
             result: { data: dataOne },
@@ -2181,7 +2194,7 @@ describe('ObservableQuery', () => {
   });
 
   describe('assumeImmutableResults', () => {
-    itAsync('should prevent costly (but safe) cloneDeep calls', async (resolve, reject) => {
+    itAsync('should prevent costly (but safe) cloneDeep calls', async (resolve) => {
       const queryOptions = {
         query: gql`
           query {
@@ -2265,10 +2278,10 @@ describe('ObservableQuery', () => {
   });
 
   describe('resetQueryStoreErrors', () => {
-    itAsync("should remove any GraphQLError's stored in the query store", (resolve, reject) => {
+    itAsync("should remove any GraphQLError's stored in the query store", (resolve) => {
       const graphQLError = new GraphQLError('oh no!');
 
-      const observable: ObservableQuery<any> = mockWatchQuery(reject, {
+      const observable: ObservableQuery<any> = mockWatchQuery({
         request: { query, variables },
         result: { errors: [graphQLError] },
       });
@@ -2287,10 +2300,10 @@ describe('ObservableQuery', () => {
       });
     });
 
-    itAsync("should remove network error's stored in the query store", (resolve, reject) => {
+    itAsync("should remove network error's stored in the query store", (resolve) => {
       const networkError = new Error('oh no!');
 
-      const observable: ObservableQuery<any> = mockWatchQuery(reject, {
+      const observable: ObservableQuery<any> = mockWatchQuery({
         request: { query, variables },
         result: { data: dataOne },
       });
@@ -2309,7 +2322,7 @@ describe('ObservableQuery', () => {
   });
 
   itAsync("QueryInfo does not notify for !== but deep-equal results", (resolve, reject) => {
-    const queryManager = mockQueryManager(reject, {
+    const queryManager = mockQueryManager({
       request: { query, variables },
       result: { data: dataOne },
     });
@@ -2382,7 +2395,7 @@ describe('ObservableQuery', () => {
   });
 
   itAsync("ObservableQuery#map respects Symbol.species", (resolve, reject) => {
-    const observable = mockWatchQuery(reject, {
+    const observable = mockWatchQuery({
       request: { query, variables },
       result: { data: dataOne },
     });
