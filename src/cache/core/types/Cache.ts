@@ -1,11 +1,11 @@
-import { DataProxy } from './DataProxy';
-import { Modifier, Modifiers } from './common';
-import { ApolloCache } from '../cache';
-
+import { DataProxy } from "./DataProxy";
+import { Modifier, Modifiers } from "./common";
+import { ApolloCache } from "../cache";
+import { DefaultContext } from "../../../core/types";
 export namespace Cache {
   export type WatchCallback<TData = any> = (
     diff: Cache.DiffResult<TData>,
-    lastDiff?: Cache.DiffResult<TData>,
+    lastDiff?: Cache.DiffResult<TData>
   ) => void;
 
   export interface ReadOptions<TVariables = any, TData = any>
@@ -17,27 +17,26 @@ export namespace Cache {
     canonizeResults?: boolean;
   }
 
-  export interface WriteOptions<TResult = any, TVariables = any>
-    extends Omit<DataProxy.Query<TVariables, TResult>, "id">,
-            Omit<DataProxy.WriteOptions<TResult>, "data">
-  {
+  export interface WriteOptions<
+    TResult = any,
+    TVariables = any,
+    TContext extends Record<string, any> = DefaultContext
+  > extends Omit<DataProxy.Query<TVariables, TResult>, "id">,
+      Omit<DataProxy.WriteOptions<TResult>, "data"> {
     dataId?: string;
     result: TResult;
+    context?: TContext;
   }
 
-  export interface DiffOptions<
-    TData = any,
-    TVariables = any,
-  > extends Omit<ReadOptions<TVariables, TData>, "rootId"> {
+  export interface DiffOptions<TData = any, TVariables = any>
+    extends Omit<ReadOptions<TVariables, TData>, "rootId"> {
     // The DiffOptions interface is currently just an alias for
     // ReadOptions, though DiffOptions used to be responsible for
     // declaring the returnPartialData option.
   }
 
-  export interface WatchOptions<
-    TData = any,
-    TVariables = any,
-  > extends DiffOptions<TData, TVariables> {
+  export interface WatchOptions<TData = any, TVariables = any>
+    extends DiffOptions<TData, TVariables> {
     watcher?: object;
     immediate?: boolean;
     callback: WatchCallback<TData>;
@@ -66,7 +65,7 @@ export namespace Cache {
 
   export interface BatchOptions<
     TCache extends ApolloCache<any>,
-    TUpdateResult = void,
+    TUpdateResult = void
   > {
     // Same as the first parameter of performTransaction, except the cache
     // argument will have the subclass type rather than ApolloCache.
@@ -96,7 +95,7 @@ export namespace Cache {
       this: TCache,
       watch: Cache.WatchOptions,
       diff: Cache.DiffResult<any>,
-      lastDiff: Cache.DiffResult<any> | undefined,
+      lastDiff: Cache.DiffResult<any> | undefined
     ) => any;
   }
 

@@ -34,6 +34,7 @@ import { StoreReader } from './readFromStore';
 import { InMemoryCache } from './inMemoryCache';
 import { EntityStore } from './entityStore';
 import { Cache } from '../../core';
+import { DefaultContext } from "../../core/types"
 import { canonicalStringify } from './object-canon';
 import { normalizeReadFieldOptions } from './policies';
 import { ReadFieldFunction } from '../core/types/common';
@@ -59,6 +60,7 @@ export interface WriteContext extends ReadMergeModifyContext {
   clientOnly: boolean;
   deferred: boolean;
   flavors: Map<string, FlavorableWriteContext>;
+  operationContext?: DefaultContext;
 };
 
 type FlavorableWriteContext = Pick<
@@ -108,13 +110,15 @@ export class StoreWriter {
     private fragments?: InMemoryCacheConfig["fragments"],
   ) {}
 
-  public writeToStore(store: NormalizedCache, {
-    query,
-    result,
-    dataId,
-    variables,
-    overwrite,
-  }: Cache.WriteOptions): Reference | undefined {
+  public writeToStore(store: NormalizedCache, options: Cache.WriteOptions): Reference | undefined {
+    const {
+      query,
+      result,
+      dataId,
+      overwrite,
+      context: operationContext
+    } = options
+    let { variables } = options
     const operationDefinition = getOperationDefinition(query)!;
     const merger = makeProcessedFieldsMerger();
 
@@ -130,6 +134,7 @@ export class StoreWriter {
         return merger.merge(existing, incoming) as T;
       },
       variables,
+      operationContext,
       varString: canonicalStringify(variables),
       ...extractFragmentContext(query, this.fragments),
       overwrite: !!overwrite,
