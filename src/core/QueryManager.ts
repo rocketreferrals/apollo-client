@@ -368,6 +368,7 @@ export class QueryManager<TStore> {
           dataId: 'ROOT_MUTATION',
           query: mutation.document,
           variables: mutation.variables,
+          operationContext: mutation.context as any,
         });
       }
       if (isExecutionPatchIncrementalResult(result) && isNonEmptyArray(result.incremental)) {
@@ -394,6 +395,7 @@ export class QueryManager<TStore> {
             dataId: 'ROOT_MUTATION',
             query: mutation.document,
             variables: mutation.variables,
+            operationContext: mutation.context as any,
           })
         }
       }

@@ -25,7 +25,7 @@ export namespace Cache {
       Omit<DataProxy.WriteOptions<TResult>, "data"> {
     dataId?: string;
     result: TResult;
-    context?: TContext;
+    operationContext?: TContext;
   }
 
   export interface DiffOptions<TData = any, TVariables = any>

@@ -116,7 +116,7 @@ export class StoreWriter {
       result,
       dataId,
       overwrite,
-      context: operationContext
+      operationContext
     } = options
     let { variables } = options
     const operationDefinition = getOperationDefinition(query)!;
